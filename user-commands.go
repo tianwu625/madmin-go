@@ -127,6 +127,14 @@ type UserInfo struct {
 	UpdatedAt  time.Time     `json:"updatedAt,omitempty"`
 }
 
+type UserDetail struct {
+	CanonicalID string        `json:"canonicalID"`
+	Pgid        int32         `json:"pgid"`
+	Sgids       []int32       `json:"sgid, omitempty"`
+	Status      AccountStatus `json:"status"`
+	Uid         int32         `json:"uid"`
+}
+
 // RemoveUser - remove a user.
 func (adm *AdminClient) RemoveUser(ctx context.Context, accessKey string) error {
 	queryValues := url.Values{}
@@ -190,6 +198,40 @@ func (adm *AdminClient) GetUserInfo(ctx context.Context, name string) (u UserInf
 
 	reqData := requestData{
 		relPath:     adminAPIPrefix + "/user-info",
+		queryValues: queryValues,
+	}
+
+	// Execute GET on /minio/admin/v3/user-info
+	resp, err := adm.executeMethod(ctx, http.MethodGet, reqData)
+
+	defer closeResponse(resp)
+	if err != nil {
+		return u, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return u, httpRespToErrorResponse(resp)
+	}
+
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return u, err
+	}
+
+	if err = json.Unmarshal(b, &u); err != nil {
+		return u, err
+	}
+
+	return u, nil
+}
+
+// GetUserDetail - get detail info on a user
+func (adm *AdminClient) GetUserDetail(ctx context.Context, name string) (u UserDetail, err error) {
+	queryValues := url.Values{}
+	queryValues.Set("accessKey", name)
+
+	reqData := requestData{
+		relPath:     adminAPIPrefix + "/user-detail",
 		queryValues: queryValues,
 	}
 
